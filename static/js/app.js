@@ -79,10 +79,13 @@ async function fetchQueue(status = 'ready') {
 
         if (videos.length === 0) {
             container.innerHTML = `
-                <div class="glass" style="padding: 40px; text-align: center; border-radius: var(--radius-lg); color: var(--text-muted);">
-                    <div style="font-size: 32px; margin-bottom: 8px;">📭</div>
-                    <div>No videos found under <strong>${status}</strong>.</div>
-                    <div style="margin-top: 10px;">Click <strong>"⚡ Discover Viral Videos"</strong> above to hunt fresh trending TikToks.</div>
+                <div class="empty-state-card">
+                    <div class="empty-icon">📭</div>
+                    <div class="empty-title">No videos found under <strong>${status}</strong></div>
+                    <div class="empty-desc">Click below to hunt high-performing TikToks from US & UK.</div>
+                    <button class="btn btn-primary btn-sm" style="margin-top: 16px;" onclick="triggerDiscovery()">
+                        <span>⚡</span> Discover Viral Videos
+                    </button>
                 </div>
             `;
             return;
