@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ViralReel AI - Autonomous TikTok to Instagram Reels Agent</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="/static/css/dashboard.css">
+</head>
+<body>
+    <div class="dashboard-container">
+        <!-- Top Navbar -->
+        <header class="navbar glass">
+            <div class="brand">
+                <div class="brand-icon">⚡</div>
+                <div>
+                    <h1>ViralReel AI</h1>
+                    <span class="brand-tag">Global Trend Arbitrage & Reels Automation</span>
+                </div>
+            </div>
+
+            <div class="nav-controls">
+                <!-- Autonomous Mode Toggle -->
+                <div class="auto-mode-box">
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="autoModeToggle" {% if is_autonomous %}checked{% endif %}>
+                        <span class="slider"></span>
+                    </label>
+                    <span class="auto-label">100% Autonomous Mode</span>
+                </div>
+
+                <!-- Instagram Account Status -->
+                <div id="accountPill" class="account-pill glass {% if insta_connected %}connected{% else %}disconnected{% endif %}" onclick="openLoginModal()">
+                    <span class="pulse-dot"></span>
+                    <span id="accountStatusText">{% if insta_connected %}Instagram Connected{% else %}Connect Instagram{% endif %}</span>
+                </div>
+
+                <!-- Quick Action Buttons -->
+                <div class="quick-actions">
+                    <button class="btn btn-primary" onclick="triggerDiscovery()">
+                        <span>⚡</span> Discover Viral Videos
+                    </button>
+                    <button class="btn btn-success" onclick="triggerPostNext()">
+                        <span>🚀</span> Post Next Reel
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- KPI Stats Grid -->
+        <section class="stats-grid">
+            <div class="stat-card glass">
+                <div class="stat-header">
+                    <span class="stat-title">Discovered</span>
+                    <span class="stat-icon">🎯</span>
+                </div>
+                <div class="stat-value" id="statDiscovered">{{ stats.total_discovered or 0 }}</div>
+                <div class="stat-subtext">US & UK High-Engagement TikToks</div>
+            </div>
+
+            <div class="stat-card glass">
+                <div class="stat-header">
+                    <span class="stat-title">Ready in Queue</span>
+                    <span class="stat-icon">✨</span>
+                </div>
+                <div class="stat-value" id="statReady">{{ stats.ready_count or 0 }}</div>
+                <div class="stat-subtext">Clean 9:16 + Anti-Duplicate Processed</div>
+            </div>
+
+            <div class="stat-card glass">
+                <div class="stat-header">
+                    <span class="stat-title">Reels Published</span>
+                    <span class="stat-icon">📸</span>
+                </div>
+                <div class="stat-value" id="statPosted">{{ stats.posted_count or 0 }}</div>
+                <div class="stat-subtext">Paced across Indian Peak Hours</div>
+            </div>
+
+            <div class="stat-card glass">
+                <div class="stat-header">
+                    <span class="stat-title">Today's Posts</span>
+                    <span class="stat-icon">📅</span>
+                </div>
+                <div class="stat-value"><span id="statPostsToday">{{ posts_today }}</span> / <span id="statMaxDaily">{{ max_daily }}</span></div>
+                <div class="stat-subtext">Safe Instagram API velocity</div>
+            </div>
+
+            <div class="stat-card glass">
+                <div class="stat-header">
+                    <span class="stat-title">Instagram Views</span>
+                    <span class="stat-icon">🔥</span>
+                </div>
+                <div class="stat-value" id="statViews">{{ "{:,}".format(stats.total_insta_views or 0) }}</div>
+                <div class="stat-subtext">Total tracked engagement</div>
+            </div>
+        </section>
+
+        <!-- Main Workspace Grid -->
+        <main class="dashboard-grid">
+            <!-- Left Side: Video Pipeline & Queue -->
+            <section class="queue-section">
+                <div class="section-header">
+                    <h2 class="section-title">
+                        <span>🎬</span> Viral Content Queue
+                    </h2>
+
+                    <!-- Filter Tabs -->
+                    <div class="tabs">
+                        <button class="tab-btn active" onclick="switchTab('ready', this)">Ready to Post</button>
+                        <button class="tab-btn" onclick="switchTab('discovered', this)">Discovered</button>
+                        <button class="tab-btn" onclick="switchTab('posted', this)">Published Reels</button>
+                        <button class="tab-btn" onclick="switchTab('all', this)">All Content</button>
+                    </div>
+                </div>
+
+                <!-- Video Cards Container -->
+                <div id="videoCardsList" class="video-cards-list">
+                    <div class="loading-placeholder glass" style="padding: 40px; text-align: center; color: var(--text-muted); border-radius: var(--radius-lg);">
+                        Fetching viral queue...
+                    </div>
+                </div>
+            </section>
+
+            <!-- Right Side: Real-time System Logs & Insights -->
+            <aside class="logs-panel glass">
+                <div class="section-header">
+                    <h2 class="section-title">
+                        <span>⚡</span> Live Activity Engine
+                    </h2>
+                    <button class="btn btn-secondary btn-sm" onclick="fetchLogs()">🔄 Refresh</button>
+                </div>
+
+                <div id="logsContainer" class="logs-container">
+                    <div style="color: var(--text-muted); font-size: 12px;">Loading activity logs...</div>
+                </div>
+            </aside>
+        </main>
+
+        <!-- 🧠 AI Agent Executive Center & Instagram Manager -->
+        <section class="agent-section">
+            <!-- Left: Instagram Handle Profile & Strategy Stream -->
+            <div style="display: flex; flex-direction: column; gap: 20px;">
+                <!-- Instagram Profile Card -->
+                <div class="profile-card glass">
+                    <div class="profile-header">
+                        <img id="profileAvatar" class="profile-avatar" src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150" alt="Profile">
+                        <div class="profile-names">
+                            <h3 id="profileFullName">Instagram Handle</h3>
+                            <p id="profileUsername">@connected_handle</p>
+                        </div>
+                    </div>
+
+                    <div class="profile-stats-row">
+                        <div class="profile-stat-box">
+                            <div class="num" id="profileFollowers">0</div>
+                            <div class="label">Followers</div>
+                        </div>
+                        <div class="profile-stat-box">
+                            <div class="num" id="profileFollowing">0</div>
+                            <div class="label">Following</div>
+                        </div>
+                        <div class="profile-stat-box">
+                            <div class="num" id="profilePostsCount">0</div>
+                            <div class="label">Reels / Posts</div>
+                        </div>
+                    </div>
+
+                    <div class="profile-bio" id="profileBio">
+                        Connect your Instagram account to enable AI profile management & comment auto-replies.
+                    </div>
+
+                    <div style="display: flex; gap: 10px;">
+                        <button class="btn btn-primary btn-sm" style="flex: 1;" onclick="triggerCommentEngagement()">
+                            💬 Auto-Reply Comments
+                        </button>
+                        <button class="btn btn-secondary btn-sm" onclick="triggerAgentCycle()">
+                            🧠 Run Strategic Cycle
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Strategic Decisions Stream -->
+                <div class="glass" style="padding: 20px; border-radius: var(--radius-lg);">
+                    <div class="section-header" style="margin-bottom: 12px;">
+                        <h3 class="section-title" style="font-size: 15px;">
+                            <span>🧠</span> AI Strategic Decisions & Reasoning
+                        </h3>
+                    </div>
+                    <div id="decisionsContainer" class="decisions-container">
+                        <div style="color: var(--text-muted); font-size: 12px;">Loading autonomous decisions...</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right: Interactive AI Agent Chat Console -->
+            <div class="agent-chat-card glass">
+                <div class="section-header" style="margin-bottom: 0;">
+                    <div>
+                        <h2 class="section-title">
+                            <span>🤖</span> AI Instagram Director Console
+                        </h2>
+                        <span style="font-size: 11px; color: var(--accent-cyan); font-weight: 600;">Autonomous Growth & Content Strategist</span>
+                    </div>
+                    <span class="status-badge status-ready" style="font-size: 10px;">ONLINE</span>
+                </div>
+
+                <!-- Quick Prompt Pills -->
+                <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px;">
+                    <button class="tab-btn" onclick="sendQuickPrompt('Give me an executive growth briefing')">📊 Growth Briefing</button>
+                    <button class="tab-btn" onclick="sendQuickPrompt('Auto-reply to all recent fan comments')">💬 Reply Comments</button>
+                    <button class="tab-btn" onclick="sendQuickPrompt('Post the next highest-scoring reel now')">🚀 Post Next Reel</button>
+                    <button class="tab-btn" onclick="sendQuickPrompt('Suggest 3 viral bio concepts for my page')">✨ Suggest Viral Bios</button>
+                </div>
+
+                <!-- Scrollable Chat Messages -->
+                <div id="chatMessages" class="chat-messages-container">
+                    <div class="chat-bubble agent">
+                        👋 Hey! I am your <strong>AI Instagram Director</strong>. I autonomously scout trending TikToks unseen in India, optimize them for Reels, schedule uploads at peak IST hours, and reply to your audience's comments to maximize reach. 
+                        
+                        Ask me anything or tell me to post/engage!
+                    </div>
+                </div>
+
+                <!-- Input Field -->
+                <form class="chat-input-form" onsubmit="handleChatSubmit(event)">
+                    <input type="text" id="chatInput" class="chat-input" placeholder="Give an instruction (e.g. 'Post next reel', 'Reply to comments', 'Growth briefing')..." autocomplete="off">
+                    <button type="submit" class="btn btn-primary" style="padding: 0 20px;">
+                        Send 🚀
+                    </button>
+                </form>
+            </div>
+        </section>
+    </div>
+
+    <!-- Instagram Account Login Modal -->
+    <div id="loginModal" class="modal-overlay">
+        <div class="modal-content glass">
+            <div class="modal-header">
+                <h3>Instagram Account Connection</h3>
+                <button class="close-btn" onclick="closeLoginModal()">&times;</button>
+            </div>
+            <form id="instaLoginForm" onsubmit="handleInstaLogin(event)">
+                <div class="form-group">
+                    <label class="form-label">Instagram Username</label>
+                    <input type="text" id="instaUser" class="form-input" placeholder="e.g. viralreels_daily" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Instagram Password</label>
+                    <input type="password" id="instaPass" class="form-input" placeholder="••••••••••••" required>
+                </div>
+                <div class="form-group" id="twoFactorGroup" style="display: none;">
+                    <label class="form-label" style="color: var(--accent-amber);">2FA Security Code (SMS / Authenticator)</label>
+                    <input type="text" id="insta2fa" class="form-input" placeholder="6-digit code">
+                </div>
+                <div style="display: flex; gap: 10px; margin-top: 20px;">
+                    <button type="submit" class="btn btn-primary" style="flex: 1;">
+                        Save & Authenticate
+                    </button>
+                    <button type="button" class="btn btn-secondary" onclick="closeLoginModal()">
+                        Cancel
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Video Preview Modal -->
+    <div id="previewModal" class="modal-overlay" onclick="closePreviewModal()">
+        <div class="modal-content glass" style="max-width: 400px; padding: 16px; text-align: center;" onclick="event.stopPropagation()">
+            <div class="modal-header" style="margin-bottom: 10px;">
+                <h4 style="font-size: 14px;">Processed Reel Preview (9:16)</h4>
+                <button class="close-btn" onclick="closePreviewModal()">&times;</button>
+            </div>
+            <video id="previewVideoPlayer" controls autoplay style="width: 100%; max-height: 520px; border-radius: var(--radius-md); background: #000;"></video>
+        </div>
+    </div>
+
+    <!-- Toast Notifications Container -->
+    <div id="toastContainer" class="toast-container"></div>
+
+    <!-- Custom JS -->
+    <script src="/static/js/app.js"></script>
+</body>
+</html>
