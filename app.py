@@ -20,10 +20,24 @@ from modules.video_processor import processor
 from modules.ai_captioner import captioner
 from modules.instagram_poster import poster
 from modules.analytics_tracker import tracker
+import time
 from modules.auth import (
     create_session_token, verify_session_token,
     verify_credentials, COOKIE_NAME
 )
+
+SERVER_START_TIME = time.time()
+
+def format_uptime(seconds: int) -> str:
+    days, remainder = divmod(int(seconds), 86400)
+    hours, remainder = divmod(remainder, 3600)
+    minutes, secs = divmod(remainder, 60)
+    if days > 0:
+        return f"{days}d {hours:02d}h {minutes:02d}m"
+    elif hours > 0:
+        return f"{hours:02d}h {minutes:02d}m {secs:02d}s"
+    else:
+        return f"{minutes:02d}m {secs:02d}s"
 
 app = FastAPI(title="ViralReel AI - Autonomous TikTok to Instagram Reels Agent")
 
@@ -75,7 +89,14 @@ def on_shutdown():
 # --- Health Check (For Cloud Uptime Monitoring & Render) ---
 @app.get("/health")
 async def health_check():
-    return {"status": "ok", "service": "ViralReel AI", "security": "authenticated"}
+    uptime_sec = int(time.time() - SERVER_START_TIME)
+    return {
+        "status": "ok",
+        "service": "ViralReel AI",
+        "security": "authenticated",
+        "uptime_seconds": uptime_sec,
+        "uptime_formatted": format_uptime(uptime_sec)
+    }
 
 # --- Auth Routes ---
 @app.get("/login", response_class=HTMLResponse)
@@ -129,13 +150,16 @@ async def dashboard_page(request: Request):
     posts_today = pipeline.count_posts_today()
     max_daily = int(db.get_setting("max_daily_posts", MAX_DAILY_POSTS))
     is_autonomous = pipeline.is_autonomous_active()
+    uptime_sec = int(time.time() - SERVER_START_TIME)
     
     context = {
         "stats": stats,
         "posts_today": posts_today,
         "max_daily": max_daily,
         "is_autonomous": is_autonomous,
-        "insta_connected": poster.is_authenticated or poster.load_session()
+        "insta_connected": poster.is_authenticated or poster.load_session(),
+        "uptime_seconds": uptime_sec,
+        "uptime_formatted": format_uptime(uptime_sec)
     }
     return templates.TemplateResponse(request, "index.html", context)
 
@@ -148,6 +172,9 @@ async def get_stats():
     stats["max_daily"] = int(db.get_setting("max_daily_posts", MAX_DAILY_POSTS))
     stats["is_autonomous"] = pipeline.is_autonomous_active()
     stats["insta_connected"] = poster.is_authenticated or poster.load_session()
+    uptime_sec = int(time.time() - SERVER_START_TIME)
+    stats["uptime_seconds"] = uptime_sec
+    stats["uptime_formatted"] = format_uptime(uptime_sec)
     return stats
 
 @app.get("/api/queue")
