@@ -430,6 +430,22 @@ async function fetchDecisions() {
     }
 }
 
+function formatMarkdown(text) {
+    if (!text) return '';
+    let escaped = escapeHtml(text);
+    // Replace markdown links [label](url)
+    escaped = escaped.replace(/\[([^\]]+)\]\((https?:\/\/[^\s\)]+)\)/g, '<a href="$2" target="_blank" style="color: var(--accent-cyan); text-decoration: underline; font-weight: 500;">$1</a>');
+    // Replace bold **text**
+    escaped = escaped.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+    // Replace italic *text*
+    escaped = escaped.replace(/\*([^*]+)\*/g, '<em>$1</em>');
+    // Replace code `code`
+    escaped = escaped.replace(/`([^`]+)`/g, '<code style="background: rgba(255,255,255,0.08); padding: 2px 6px; border-radius: 4px; font-size: 12px; color: var(--accent-cyan);">$1</code>');
+    // Replace newlines with <br>
+    escaped = escaped.replace(/\n/g, '<br>');
+    return escaped;
+}
+
 async function fetchChatHistory() {
     try {
         const res = await fetch('/api/agent/chat/history?limit=25');
@@ -440,7 +456,7 @@ async function fetchChatHistory() {
         if (history.length > 0) {
             container.innerHTML = history.map(msg => `
                 <div class="chat-bubble ${msg.role === 'user' ? 'user' : 'agent'}">
-                    ${escapeHtml(msg.message)}
+                    ${formatMarkdown(msg.message)}
                 </div>
             `).join('');
             container.scrollTop = container.scrollHeight;
@@ -480,13 +496,14 @@ async function handleChatSubmit(e) {
             body: JSON.stringify({ message: msg })
         });
         const data = await res.json();
-        typingBubble.innerHTML = escapeHtml(data.reply || 'Task processed.');
+        typingBubble.innerHTML = formatMarkdown(data.reply || 'Task processed.');
         container.scrollTop = container.scrollHeight;
 
-        // Refresh stats & queue in case agent triggered an action
+        // Refresh stats, queue, profile & decisions in case agent triggered an action
         fetchStats();
         fetchQueue(currentTab);
         fetchDecisions();
+        fetchProfile();
     } catch (err) {
         typingBubble.textContent = 'Sorry, could not process instruction.';
     }
