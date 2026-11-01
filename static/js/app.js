@@ -433,15 +433,17 @@ async function fetchDecisions() {
 function formatMarkdown(text) {
     if (!text) return '';
     let escaped = escapeHtml(text);
+    // Replace fenced code blocks ```text ... ```
+    escaped = escaped.replace(/```(?:[a-z]+)?\n?([\s\S]*?)```/g, '<pre style="background: rgba(0,0,0,0.5); padding: 10px 14px; border-radius: 8px; font-family: monospace; font-size: 11px; overflow-x: auto; color: #38bdf8; border: 1px solid rgba(255,255,255,0.06); margin: 8px 0;">$1</pre>');
     // Replace markdown links [label](url)
     escaped = escaped.replace(/\[([^\]]+)\]\((https?:\/\/[^\s\)]+)\)/g, '<a href="$2" target="_blank" style="color: var(--accent-cyan); text-decoration: underline; font-weight: 500;">$1</a>');
     // Replace bold **text**
     escaped = escaped.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
     // Replace italic *text*
     escaped = escaped.replace(/\*([^*]+)\*/g, '<em>$1</em>');
-    // Replace code `code`
+    // Replace inline code `code`
     escaped = escaped.replace(/`([^`]+)`/g, '<code style="background: rgba(255,255,255,0.08); padding: 2px 6px; border-radius: 4px; font-size: 12px; color: var(--accent-cyan);">$1</code>');
-    // Replace newlines with <br>
+    // Replace newlines with <br> (avoid breaking inside pre if handled)
     escaped = escaped.replace(/\n/g, '<br>');
     return escaped;
 }
