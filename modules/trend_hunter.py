@@ -11,6 +11,12 @@ from database import db
 logger = logging.getLogger("TrendHunter")
 logging.basicConfig(level=logging.INFO)
 
+try:
+    from curl_cffi import requests as cffi_requests
+    HAS_CURL_CFFI = True
+except ImportError:
+    HAS_CURL_CFFI = False
+
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
     "Accept": "application/json, text/plain, */*",
@@ -34,8 +40,23 @@ class TrendHunter:
         return round(score, 2)
 
     def fetch_feed(self, region: str) -> List[Dict[str, Any]]:
-        """Fetch viral feed for a given country code."""
+        """Fetch viral feed for a given country code with Cloudflare bypass."""
         url = f"{self.base_url}?region={region}"
+
+        # 1. Primary: curl_cffi with Chrome TLS impersonation (bypasses Cloudflare 403 on cloud IPs)
+        if HAS_CURL_CFFI:
+            try:
+                res = cffi_requests.get(url, impersonate="chrome120", timeout=20, headers=HEADERS)
+                if res.status_code == 200:
+                    data = res.json()
+                    if data.get("code") == 0 and "data" in data:
+                        return data["data"]
+                else:
+                    db.add_log("WARN", "TrendHunter", f"curl_cffi fetch for {region} returned {res.status_code}")
+            except Exception as e:
+                db.add_log("WARN", "TrendHunter", f"curl_cffi exception for {region}: {e}")
+
+        # 2. Fallback: standard httpx
         try:
             with httpx.Client(timeout=20, headers=HEADERS) as client:
                 response = client.get(url)
