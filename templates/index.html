@@ -24,6 +24,12 @@
             </div>
 
             <div class="nav-controls">
+                <!-- 24/7 Live Uptime Indicator -->
+                <div class="uptime-pill" title="Continuous 24/7 Server Uptime">
+                    <span class="uptime-radar"></span>
+                    <span class="uptime-text">UPTIME: <strong id="uptimeCounter">{{ uptime_formatted or '00m 00s' }}</strong></span>
+                </div>
+
                 <!-- Autonomous Mode Toggle -->
                 <div class="auto-mode-box">
                     <label class="toggle-switch">
@@ -99,6 +105,15 @@
                 </div>
                 <div class="stat-value" id="statViews">{{ "{:,}".format(stats.total_insta_views or 0) }}</div>
                 <div class="stat-subtext">Total tracked engagement</div>
+            </div>
+
+            <div class="stat-card glass">
+                <div class="stat-header">
+                    <span class="stat-title">System Uptime</span>
+                    <span class="stat-icon">⏱️</span>
+                </div>
+                <div class="stat-value" id="statUptimeCard" style="font-size: 26px;">{{ uptime_formatted or '00m 00s' }}</div>
+                <div class="stat-subtext">🟢 24/7 Autonomous Sovereign Online</div>
             </div>
         </section>
 
