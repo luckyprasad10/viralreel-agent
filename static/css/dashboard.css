@@ -234,6 +234,38 @@ input:checked + .slider:before {
     color: var(--text-primary);
 }
 
+/* 24/7 Live Uptime Pill */
+.uptime-pill {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding: 8px 16px;
+    border-radius: var(--radius-full);
+    background: var(--neu-surface-active);
+    box-shadow: var(--neu-pressed-sm);
+    border: 1px solid rgba(255, 255, 255, 0.03);
+    font-family: var(--font-heading);
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text-secondary);
+    letter-spacing: 0.5px;
+}
+
+.uptime-radar {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #06b6d4;
+    box-shadow: 0 0 10px rgba(6, 182, 212, 0.6);
+    animation: pulse 1.8s infinite;
+}
+
+.uptime-text strong {
+    color: #38bdf8;
+    font-weight: 800;
+    font-family: var(--font-mono);
+}
+
 /* Account Pill */
 .account-pill {
     display: flex;
