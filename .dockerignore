@@ -1,0 +1,12 @@
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.env
+.git/
+.gitignore
+data/downloads/*.mp4
+data/processed/*.mp4
+.system_generated/
+test_*.py
