@@ -1,5 +1,29 @@
 let currentTab = 'ready';
 let autoRefreshTimer = null;
+let currentUptimeSeconds = 0;
+
+function formatSeconds(sec) {
+    sec = Math.floor(sec || 0);
+    const d = Math.floor(sec / 86400);
+    const h = Math.floor((sec % 86400) / 3600);
+    const m = Math.floor((sec % 3600) / 60);
+    const s = sec % 60;
+    if (d > 0) return `${d}d ${String(h).padStart(2, '0')}h ${String(m).padStart(2, '0')}m`;
+    if (h > 0) return `${h}h ${String(m).padStart(2, '0')}m ${String(s).padStart(2, '0')}s`;
+    return `${m}m ${String(s).padStart(2, '0')}s`;
+}
+
+// Live real-time ticking clock
+setInterval(() => {
+    if (currentUptimeSeconds >= 0) {
+        currentUptimeSeconds++;
+        const formatted = formatSeconds(currentUptimeSeconds);
+        const counterEl = document.getElementById('uptimeCounter');
+        if (counterEl) counterEl.textContent = formatted;
+        const cardEl = document.getElementById('statUptimeCard');
+        if (cardEl) cardEl.textContent = formatted;
+    }
+}, 1000);
 
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', () => {
@@ -53,6 +77,15 @@ async function fetchStats() {
         document.getElementById('statPostsToday').textContent = data.posts_today || 0;
         document.getElementById('statMaxDaily').textContent = data.max_daily || 3;
         document.getElementById('statViews').textContent = (data.total_insta_views || 0).toLocaleString();
+
+        if (data.uptime_seconds !== undefined) {
+            currentUptimeSeconds = data.uptime_seconds;
+            const formatted = data.uptime_formatted || formatSeconds(currentUptimeSeconds);
+            const counterEl = document.getElementById('uptimeCounter');
+            if (counterEl) counterEl.textContent = formatted;
+            const cardEl = document.getElementById('statUptimeCard');
+            if (cardEl) cardEl.textContent = formatted;
+        }
 
         const accountPill = document.getElementById('accountPill');
         const accountText = document.getElementById('accountStatusText');
