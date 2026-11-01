@@ -93,6 +93,167 @@ class InstagramManager:
             db.add_log("ERROR", "InstagramManager", f"Failed to update bio: {e}")
         return False
 
+    def delete_recent_reels(self, count: int = 10) -> Dict[str, Any]:
+        """
+        Deletes the most recently uploaded Reels from Instagram
+        and updates the database status to 'deleted'.
+        """
+        if not self.is_ready():
+            return {"success": False, "count": 0, "message": "Instagram account not authenticated."}
+
+        try:
+            client = self.poster.client
+            user_id = client.user_id
+            medias = client.user_medias(user_id, amount=count)
+
+            deleted_items = []
+            for media in medias:
+                pk = str(media.pk)
+                code = getattr(media, "code", "")
+                try:
+                    success = client.media_delete(media.pk)
+                    if success:
+                        deleted_items.append({"pk": pk, "code": code})
+                        # Update DB
+                        with db.get_connection() as conn:
+                            conn.execute("UPDATE videos SET status = 'deleted' WHERE insta_media_id = ?", (pk,))
+                except Exception as del_err:
+                    logger.warning(f"Failed deleting media {pk}: {del_err}")
+
+            # Clear cached profile so dashboard updates immediately
+            self._cached_profile = None
+
+            db.add_agent_decision(
+                action_type="USER_COMMAND_DELETE_REELS",
+                reasoning=f"User instructed to delete uploaded Reels. Successfully removed {len(deleted_items)} medias from Instagram.",
+                impact=f"Deleted {len(deleted_items)} Reels. Account media count updated."
+            )
+            db.add_log("SUCCESS", "InstagramManager", f"Deleted {len(deleted_items)} reels from Instagram account upon command.")
+
+            return {
+                "success": True,
+                "count": len(deleted_items),
+                "deleted": deleted_items,
+                "message": f"Successfully deleted {len(deleted_items)} uploaded reel(s) from @{client.username}."
+            }
+
+        except Exception as e:
+            db.add_log("ERROR", "InstagramManager", f"Delete reels failed: {e}")
+            return {"success": False, "count": 0, "message": str(e)}
+
+    def run_content_audit(self) -> Dict[str, Any]:
+        """
+        Comprehensive Content & Profile Audit for Instagram Growth:
+        - Authority ratio (followers vs following)
+        - Bio conversion effectiveness
+        - Niche alignment & retention potential
+        - Actionable 3-step growth blueprint
+        """
+        profile = self.get_profile_details(force=True)
+        stats = db.get_dashboard_stats()
+
+        followers = profile.get("followers", 0)
+        following = profile.get("following", 0)
+        media_count = profile.get("media_count", 0)
+        bio = profile.get("biography", "")
+        username = profile.get("username", "account")
+
+        # 1. Authority Score
+        ratio = round(followers / max(following, 1), 2)
+        if ratio > 2.0:
+            authority = "High Authority (Creator/Influencer ratio)"
+        elif ratio >= 0.8:
+            authority = "Balanced (Growing community)"
+        else:
+            authority = "Developing (Following exceeds followers; consider trimming non-active follows)"
+
+        # 2. Bio Conversion Analysis
+        bio_strengths = []
+        bio_fixes = []
+        if len(bio) < 15:
+            bio_fixes.append("Bio is too sparse; lacks a clear niche proposition.")
+        if not any(char in bio for char in ["👇", "⬇️", "link", "follow"]):
+            bio_fixes.append("Missing a direct Call-To-Action (CTA) encouraging profile visitors to follow.")
+        if any(emoji in bio for emoji in ["😂", "💀", "🍿", "🌎", "🔥", "✨"]):
+            bio_strengths.append("Uses engaging emojis to set a high-energy comedy tone.")
+        if "daily" in bio.lower() or "pm" in bio.lower():
+            bio_strengths.append("Sets clear posting frequency expectations for followers.")
+
+        # 3. Content Pipeline State
+        ready_reels = stats.get("ready_count", 0)
+        discovered = stats.get("total_discovered", 0)
+
+        audit_report = {
+            "username": username,
+            "followers": followers,
+            "following": following,
+            "posts_count": media_count,
+            "authority_ratio": ratio,
+            "authority_verdict": authority,
+            "bio_assessment": {
+                "current_bio": bio,
+                "strengths": bio_strengths or ["Active handle"],
+                "actionable_fixes": bio_fixes or ["Bio has solid foundation"]
+            },
+            "content_pipeline": {
+                "ready_in_queue": ready_reels,
+                "total_scouted": discovered,
+                "status": "Healthy" if ready_reels >= 3 else "Needs replenishment"
+            },
+            "recommendations": [
+                "1. Focus 100% on 12-25 second Reels with an unexpected twist in the first 3 seconds.",
+                "2. Schedule posts during peak Indian mobile engagement slots: 12:30 PM, 6:00 PM, and 9:00 PM IST.",
+                "3. Use pinned comments with polarizing questions to trigger debate in comment section."
+            ]
+        }
+        return audit_report
+
+    def optimize_profile_full(self, apply: bool = False) -> Dict[str, Any]:
+        """
+        Generates complete profile makeover: SEO display name, 3 high-converting bios,
+        and story highlight structures.
+        """
+        profile = self.get_profile_details()
+        username = profile.get("username", "creator")
+
+        seo_name = f"{profile.get('full_name') or username} | Viral Comedy & Memes 🍿"
+
+        bio_concepts = [
+            {
+                "theme": "Curiosity & Arbitrage (Highest Follower Conversion)",
+                "bio": "Global humor you haven't seen yet 🌎😂\nCurating the internet's most unhinged memes 🍿\nDaily drops at 12:30 & 9:00 PM IST 👇\nHit Follow for daily dopamine hits ❤️"
+            },
+            {
+                "theme": "Pure Relatability & DM Shares",
+                "bio": "Laughing through the chaos 💀✨\n100% pure uncut viral entertainment 🍿\nTag your squad in the comments ⬇️\nDaily laughs guaranteed 🚀"
+            },
+            {
+                "theme": "Bold & Minimal",
+                "bio": "The algorithm brought you here for a reason 😂\nTop 1% viral comedy clips worldwide 🌎\nNever a dull moment 👇\nJoin the chaos ❤️"
+            }
+        ]
+
+        if apply and self.is_ready():
+            best_bio = bio_concepts[0]["bio"]
+            self.update_profile_bio(best_bio)
+            return {
+                "status": "applied",
+                "seo_name": seo_name,
+                "applied_bio": best_bio,
+                "concepts": bio_concepts
+            }
+
+        return {
+            "status": "ready",
+            "seo_name": seo_name,
+            "concepts": bio_concepts,
+            "highlight_pillars": [
+                "🔥 Top Viral (Best performing 1M+ Reels)",
+                "😂 Fan Faves (Most commented clips)",
+                "🍿 Daily Chaos (Behind the scenes / Stories)"
+            ]
+        }
+
     def autonomous_profile_optimization(self) -> Dict[str, Any]:
         """
         AI Agent checks if the bio needs improvement and updates it autonomously
@@ -106,20 +267,14 @@ class InstagramManager:
 
         # If bio is empty or too short, set a high-converting viral theme bio
         if len(current_bio) < 5:
-            viral_bios = [
-                "Daily dose of viral comedy 🌎🍿\nUnseen clips & unhinged memes 😂\nFollow for daily dopamine hits 🚀",
-                "Curating the internet's most viral laughs 🍿\nTikTok's best clips unseen in India 🇮🇳✨\nNew drops daily at 12:30 & 9:00 PM 👇",
-                "Laughing through the chaos 💀✨\n100% pure uncut global entertainment 😂\nHit Follow for your daily smile ❤️"
-            ]
-            chosen_bio = random.choice(viral_bios)
-            updated = self.update_profile_bio(chosen_bio)
-            if updated:
+            res = self.optimize_profile_full(apply=True)
+            if res.get("status") == "applied":
                 db.add_agent_decision(
                     action_type="BIO_OPTIMIZED",
-                    reasoning="Detected empty/unoptimized profile bio. Formulated a high-retention viral comedy bio to boost profile-visit to follow conversion rate.",
-                    impact=f"Set bio: {chosen_bio.replace(chr(10), ' ')}"
+                    reasoning="Detected empty/unoptimized profile bio. Applied a high-retention viral comedy bio to maximize profile-visit to follow conversion rate.",
+                    impact=f"Set bio: {res.get('applied_bio', '').replace(chr(10), ' ')}"
                 )
-                return {"status": "bio_updated", "bio": chosen_bio}
+                return {"status": "bio_updated", "bio": res.get("applied_bio")}
 
         return {"status": "bio_optimal"}
 
