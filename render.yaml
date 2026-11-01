@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: viralreel-ai-agent
+    env: docker
+    plan: free
+    region: oregon
+    autoDeploy: true
+    envVars:
+      - key: AUTONOMOUS_MODE
+        value: "true"
+      - key: MAX_DAILY_POSTS
+        value: "3"
+      - key: INSTA_USERNAME
+        sync: false
+      - key: INSTA_PASSWORD
+        sync: false
+      - key: INSTA_SESSION_DATA
+        sync: false
