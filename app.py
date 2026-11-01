@@ -2,7 +2,7 @@ import os
 from pathlib import Path
 from typing import Optional, List, Dict, Any
 from fastapi import FastAPI, Request, Form, BackgroundTasks, HTTPException
-from fastapi.responses import HTMLResponse, JSONResponse, FileResponse
+from fastapi.responses import HTMLResponse, JSONResponse, FileResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
@@ -10,7 +10,7 @@ from pydantic import BaseModel
 from config import (
     BASE_DIR, DATA_DIR, DOWNLOADS_DIR, PROCESSED_DIR,
     WEB_HOST, WEB_PORT, AUTONOMOUS_MODE, MAX_DAILY_POSTS,
-    TARGET_REGIONS
+    TARGET_REGIONS, SESSION_MAX_AGE_SECONDS
 )
 from database import db
 from modules.scheduler import pipeline
@@ -20,6 +20,10 @@ from modules.video_processor import processor
 from modules.ai_captioner import captioner
 from modules.instagram_poster import poster
 from modules.analytics_tracker import tracker
+from modules.auth import (
+    create_session_token, verify_session_token,
+    verify_credentials, COOKIE_NAME
+)
 
 app = FastAPI(title="ViralReel AI - Autonomous TikTok to Instagram Reels Agent")
 
@@ -34,17 +38,91 @@ app.mount("/media/downloads", StaticFiles(directory=str(DOWNLOADS_DIR)), name="d
 
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 
+# --- Security Authentication Middleware ---
+@app.middleware("http")
+async def auth_middleware(request: Request, call_next):
+    path = request.url.path
+
+    # Public whitelist: Static assets, login/logout, health check
+    if (
+        path.startswith("/static")
+        or path in ("/login", "/logout", "/health", "/favicon.ico")
+    ):
+        return await call_next(request)
+
+    # Check for valid session cookie
+    token = request.cookies.get(COOKIE_NAME)
+    if not verify_session_token(token):
+        if path.startswith("/api/"):
+            return JSONResponse(
+                status_code=401,
+                content={"detail": "Unauthorized. Please login to access ViralReel AI."}
+            )
+        return RedirectResponse(url="/login", status_code=303)
+
+    return await call_next(request)
+
 # Startup event to launch background scheduler
 @app.on_event("startup")
 def on_startup():
     pipeline.start()
-    db.add_log("INFO", "Server", "Web Control Dashboard initialized.")
+    db.add_log("INFO", "Server", "Web Control Dashboard initialized with Protected Auth.")
 
 @app.on_event("shutdown")
 def on_shutdown():
     pipeline.stop()
 
-# --- Page Routes ---
+# --- Health Check (For Cloud Uptime Monitoring & Render) ---
+@app.get("/health")
+async def health_check():
+    return {"status": "ok", "service": "ViralReel AI", "security": "authenticated"}
+
+# --- Auth Routes ---
+@app.get("/login", response_class=HTMLResponse)
+async def login_page(request: Request):
+    # If already logged in, redirect straight to dashboard
+    token = request.cookies.get(COOKIE_NAME)
+    if verify_session_token(token):
+        return RedirectResponse(url="/", status_code=303)
+    return templates.TemplateResponse(request, "login.html", {"error": None, "username": ""})
+
+@app.post("/login")
+async def handle_login(
+    request: Request,
+    username: str = Form(...),
+    password: str = Form(...),
+    remember: Optional[str] = Form(None)
+):
+    if verify_credentials(username, password):
+        token = create_session_token(username)
+        response = RedirectResponse(url="/", status_code=303)
+        max_age = SESSION_MAX_AGE_SECONDS if remember else None
+        response.set_cookie(
+            key=COOKIE_NAME,
+            value=token,
+            max_age=max_age,
+            httponly=True,
+            samesite="lax",
+            secure=False  # Set False so it works on both HTTP localhost and HTTPS cloud
+        )
+        db.add_log("SUCCESS", "Auth", f"User '{username}' authenticated successfully.")
+        return response
+    else:
+        db.add_log("WARN", "Auth", f"Failed authentication attempt for username: '{username}'")
+        return templates.TemplateResponse(
+            request,
+            "login.html",
+            {"error": "Invalid username or security password. Access denied.", "username": username},
+            status_code=401
+        )
+
+@app.get("/logout")
+async def handle_logout():
+    response = RedirectResponse(url="/login", status_code=303)
+    response.delete_cookie(key=COOKIE_NAME)
+    return response
+
+# --- Protected Page Routes ---
 @app.get("/", response_class=HTMLResponse)
 async def dashboard_page(request: Request):
     stats = db.get_dashboard_stats()
