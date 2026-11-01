@@ -9,6 +9,12 @@ from database import db
 logger = logging.getLogger("Downloader")
 logging.basicConfig(level=logging.INFO)
 
+try:
+    from curl_cffi import requests as cffi_requests
+    HAS_CURL_CFFI = True
+except ImportError:
+    HAS_CURL_CFFI = False
+
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
     "Referer": "https://www.tikwm.com/"
@@ -22,6 +28,16 @@ class VideoDownloader:
     def fetch_video_info(self, tiktok_url: str) -> Optional[Dict[str, Any]]:
         """Query TikWM API to get clean HD no-watermark video stream URL."""
         api_url = f"https://www.tikwm.com/api/?url={tiktok_url}"
+        if HAS_CURL_CFFI:
+            try:
+                res = cffi_requests.get(api_url, impersonate="chrome120", timeout=20, headers=HEADERS)
+                if res.status_code == 200:
+                    data = res.json()
+                    if data.get("code") == 0 and "data" in data:
+                        return data["data"]
+            except Exception as e:
+                db.add_log("WARN", "Downloader", f"curl_cffi fetch notice for {tiktok_url}: {e}")
+
         try:
             with httpx.Client(timeout=20, headers=HEADERS) as client:
                 res = client.get(api_url)
