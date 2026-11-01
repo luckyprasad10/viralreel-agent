@@ -66,3 +66,10 @@ NORMALIZE_AUDIO = True
 # Server Configuration
 WEB_HOST = os.getenv("WEB_HOST", "0.0.0.0")
 WEB_PORT = int(os.getenv("WEB_PORT", "7860"))
+
+# Security & Dashboard Authentication
+DASHBOARD_USERNAME = os.getenv("DASHBOARD_USERNAME", "admin")
+DASHBOARD_PASSWORD = os.getenv("DASHBOARD_PASSWORD", "Lp7850418@")
+SESSION_SECRET_KEY = os.getenv("SESSION_SECRET_KEY", "viralreel-agent-secure-token-2026-auth-salt")
+SESSION_MAX_AGE_SECONDS = int(os.getenv("SESSION_MAX_AGE_SECONDS", str(30 * 24 * 3600)))  # 30 Days
+
