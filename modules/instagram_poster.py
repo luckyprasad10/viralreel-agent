@@ -121,11 +121,31 @@ class InstagramPoster:
         try:
             db.add_log("INFO", "Instagram", f"Uploading Reel for video {video_id} ({Path(video_path).name})...")
 
+            # Generate thumbnail frame with FFmpeg to prevent MoviePy dependency error
+            thumbnail_path = Path(video_path).with_suffix(".jpg")
+            try:
+                import subprocess
+                import imageio_ffmpeg
+                ffmpeg_exe = imageio_ffmpeg.get_ffmpeg_exe()
+                subprocess.run(
+                    [ffmpeg_exe, "-y", "-ss", "00:00:01", "-i", str(video_path), "-vframes", "1", "-q:v", "2", str(thumbnail_path)],
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    timeout=10,
+                    check=False
+                )
+            except Exception as thumb_err:
+                db.add_log("WARN", "Instagram", f"Thumbnail generation notice: {thumb_err}")
+
+            upload_kwargs = {
+                "path": Path(video_path),
+                "caption": caption
+            }
+            if thumbnail_path.exists():
+                upload_kwargs["thumbnail"] = thumbnail_path
+
             # Upload video as Instagram Reel (Clip)
-            media = self.client.clip_upload(
-                path=Path(video_path),
-                caption=caption
-            )
+            media = self.client.clip_upload(**upload_kwargs)
 
             media_id = str(media.pk)
             insta_code = str(media.code)
