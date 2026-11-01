@@ -228,7 +228,9 @@ Provide JSON:
     def craft_viral_caption(self, original_title: str, hook: str) -> str:
         """
         Constructs an Instagram caption engineered for high comments and DM sends.
+        Complies with Instagram's 5-hashtag cap and strips AI slop using ig-human.
         """
+        from modules.skills_bridge import skills_bridge
         clean_title = re.sub(r'#\w+|@\w+', '', original_title or '').strip()
         
         caption_lines = [
@@ -239,9 +241,13 @@ Provide JSON:
             "👇 Tag that one friend who needs to see this 😂",
             "Follow @1lucky_24 for your daily dose of laughs! 🚀",
             "",
-            "#reels #reelsindia #trending #viralmemes #funnyreels #comedy #memesdaily #explorepage #foryou #instafunny #laughter"
+            "#reelsindia #trending #viralmemes #funnyreels #explorepage"
         ]
-        return "\n".join([line for line in caption_lines if line is not None])
+        raw_caption = "\n".join([line for line in caption_lines if line is not None])
+        
+        # Humanize: strip any invisible watermarks or AI slop
+        humanized = skills_bridge.humanize(raw_caption)
+        return humanized.get("clean_text", raw_caption)
 
     def research_niche_trends(self, niche: str = "Relatable Comedy & Unexpected Twists") -> Dict[str, Any]:
         """
