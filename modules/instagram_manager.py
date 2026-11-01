@@ -183,6 +183,10 @@ class InstagramManager:
         ready_reels = stats.get("ready_count", 0)
         discovered = stats.get("total_discovered", 0)
 
+        # 4. 12-Item Rubric Score (from instagram-agent-skill ig-profile)
+        from modules.skills_bridge import skills_bridge
+        rubric_audit = skills_bridge.audit_profile_against_rubric(profile)
+
         audit_report = {
             "username": username,
             "followers": followers,
@@ -190,6 +194,9 @@ class InstagramManager:
             "posts_count": media_count,
             "authority_ratio": ratio,
             "authority_verdict": authority,
+            "rubric_score": rubric_audit.get("score", 0),
+            "rubric_tier": rubric_audit.get("tier", "Needs Fixes"),
+            "rubric_fixes": rubric_audit.get("fixes_in_priority_order", []),
             "bio_assessment": {
                 "current_bio": bio,
                 "strengths": bio_strengths or ["Active handle"],
